@@ -594,6 +594,10 @@ fn main() {
         tauri::RunEvent::Ready => {
             let _ = app.track_event("app_started", None);
             bind_mouse_hook();
+            // This local study build must not replace itself with the unmodified upstream release.
+            if app.config().identifier == "local.nextai.study" {
+                return;
+            }
             let handle = app.clone();
             tauri::async_runtime::spawn(async move {
                 let builder = handle.updater_builder();

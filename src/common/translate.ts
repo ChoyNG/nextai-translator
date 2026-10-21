@@ -432,6 +432,15 @@ If you understand, say "yes", and then we will begin.`
         commandPrompt,
         modelOverride: effectiveModel,
         thinkingBudget,
+        translation:
+            query.mode === 'big-bang'
+                ? undefined
+                : {
+                      text: query.selectedWord || query.text,
+                      source: query.detectFrom,
+                      target: query.detectTo,
+                      mode: query.action.mode,
+                  },
         onMessage: async (message) => {
             await query.onMessage({ ...message, isWordMode })
         },

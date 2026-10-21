@@ -1,3 +1,5 @@
+> **NextAI Study fork:** Free machine translation, AI follow-up, phrase collection and Anki/CSV export. See [setup and usage](README-STUDY.md) and [verification](VERIFICATION.md). Original project documentation follows.
+
 # Due to receiving a trademark ownership warning from OpenAI, this project and product has been renamed to nextai translator. We hope you understand.
 
 <p align="center">

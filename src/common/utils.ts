@@ -7,10 +7,11 @@ import { listen, Event, emit } from '@tauri-apps/api/event'
 import { parse as bestEffortJSONParse } from 'best-effort-json-parser'
 import { commands } from '@/tauri/bindings'
 import { OPENAI_CHAT_COMPLETIONS_API_PATH, OPENAI_PREFERRED_DEFAULT_MODEL } from './openai-api-path'
+import { collectionAnki, collectionCsv } from './collection-export'
 
 export const defaultAPIURL = 'https://api.openai.com'
 export const defaultAPIURLPath = OPENAI_CHAT_COMPLETIONS_API_PATH
-export const defaultProvider = 'OpenAI'
+export const defaultProvider = 'MyMemory'
 export const defaultAPIModel = OPENAI_PREFERRED_DEFAULT_MODEL
 
 export const defaultChatGPTAPIAuthSessionAPIURL = 'https://chat.openai.com/api/auth/session'
@@ -23,7 +24,7 @@ export const defaultTargetLanguage = 'zh-Hans'
 export const defaultWritingTargetLanguage = 'en'
 export const defaultSelectInputElementsText = true
 export const defaultReadSelectedWordsFromInputElementsText = false
-export const defaulti18n = 'en'
+export const defaulti18n = 'zh-Hans'
 
 export async function getApiKey(): Promise<string> {
     const settings = await getSettings()
@@ -162,7 +163,7 @@ export async function getSettings(): Promise<ISettings> {
         settings.writingTargetLanguage = defaultWritingTargetLanguage
     }
     if (settings.alwaysShowIcons === undefined || settings.alwaysShowIcons === null) {
-        settings.alwaysShowIcons = !isTauri()
+        settings.alwaysShowIcons = true
     }
     if (!settings.i18n) {
         settings.i18n = defaulti18n
@@ -207,7 +208,7 @@ export async function getSettings(): Promise<ISettings> {
         }
     }
     if (settings.automaticCheckForUpdates === undefined || settings.automaticCheckForUpdates === null) {
-        settings.automaticCheckForUpdates = true
+        settings.automaticCheckForUpdates = false
     }
     if (settings.enableBackgroundBlur === undefined || settings.enableBackgroundBlur === null) {
         if (settings.enableMica !== undefined && settings.enableMica !== null) {
@@ -217,7 +218,7 @@ export async function getSettings(): Promise<ISettings> {
         }
     }
     if (!settings.languageDetectionEngine) {
-        settings.languageDetectionEngine = 'baidu'
+        settings.languageDetectionEngine = 'local'
     }
     if (!settings.proxy) {
         settings.proxy = {
@@ -344,7 +345,7 @@ export const isFirefox = () => /firefox/i.test(navigator.userAgent)
 
 export const isUsingOpenAIOfficialAPIEndpoint = async () => {
     const settings = await getSettings()
-    return settings.provider === defaultProvider && settings.apiURL === defaultAPIURL
+    return settings.provider === 'OpenAI' && settings.apiURL === defaultAPIURL
 }
 
 export const isUsingOpenAIOfficial = async () => {
@@ -355,45 +356,29 @@ export const isUsingOpenAIOfficial = async () => {
 // js to csv
 export async function exportToCsv<T extends Record<string, string | number>>(filename: string, rows: T[]) {
     if (!rows.length) return
-    filename += '.csv'
-    const columns = Object.keys(rows[0])
-    let csvFile = ''
-    for (const key of columns) {
-        csvFile += key + ','
-    }
-    csvFile += '\r\n'
-    const processRow = function (row: T) {
-        let s = ''
-        for (const key of columns) {
-            if (key === 'updatedAt') {
-                s += '\t' + `${row[key]}` + ','
-            } else {
-                s += '"' + `${row[key]}` + '"' + ','
-            }
-        }
-        return s + '\r\n'
-    }
+    return exportTextFile(filename + '.csv', collectionCsv(rows), 'text/csv')
+}
 
-    for (let i = 0; i < rows.length; i++) {
-        csvFile += processRow(rows[i])
-    }
+export async function exportToAnki(filename: string, rows: { word: string; description: string }[]) {
+    if (!rows.length) throw new Error('生词本为空，请先收藏单词或短语。')
+    return exportTextFile(filename + '.txt', collectionAnki(rows), 'text/plain')
+}
 
+async function exportTextFile(filename: string, content: string, mime: string) {
     if (isDesktopApp()) {
         const { BaseDirectory, writeTextFile } = await import('@tauri-apps/plugin-fs')
-        try {
-            return await writeTextFile(filename, csvFile, { baseDir: BaseDirectory.Desktop })
-        } catch (e) {
-            console.error(e)
-        }
+        await writeTextFile(filename, content, { baseDir: BaseDirectory.Desktop })
     } else {
+        const url = URL.createObjectURL(new Blob([content], { type: `${mime};charset=utf-8` }))
         const link = document.createElement('a')
-        if (link.download !== undefined) {
-            link.setAttribute('href', 'data:text/csv;charset=utf-8,ufeff' + encodeURIComponent(csvFile))
-            link.setAttribute('download', filename)
-            // link.style.visibility = 'hidden'
-            document.body.appendChild(link)
+        link.href = url
+        link.download = filename
+        document.body.appendChild(link)
+        try {
             link.click()
-            document.body.removeChild(link)
+        } finally {
+            link.remove()
+            setTimeout(() => URL.revokeObjectURL(url), 1000)
         }
     }
 }

@@ -33,8 +33,11 @@ import { OpenRouterIcon } from '@/common/components/icons/OpenRouterIcon'
 import { OpenRouter } from './openrouter'
 import { LiteLLMIcon } from '@/common/components/icons/LiteLLMIcon'
 import { LiteLLM } from './litellm'
+import { MyMemory } from './mymemory'
+import { MdTranslate } from 'react-icons/md'
 
 export type Provider =
+    | 'MyMemory'
     | 'OpenAI'
     | 'ChatGPT'
     | 'Azure'
@@ -54,6 +57,7 @@ export type Provider =
     | 'LiteLLM'
 
 export const engineIcons: Record<Provider, IconType> = {
+    MyMemory: MdTranslate,
     OpenAI: RiOpenaiFill,
     ChatGPT: RiOpenaiFill,
     Azure: VscAzureDevops,
@@ -74,6 +78,7 @@ export const engineIcons: Record<Provider, IconType> = {
 }
 
 export const providerToEngine: Record<Provider, { new (): IEngine }> = {
+    MyMemory,
     OpenAI: OpenAI,
     ChatGPT: ChatGPT,
     Azure: Azure,

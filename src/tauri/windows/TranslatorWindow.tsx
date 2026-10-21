@@ -276,7 +276,7 @@ export function TranslatorWindow() {
                 showSettings={showSettings}
                 autoFocus
                 defaultShowSettings
-                editorRows={10}
+                editorRows={4}
                 containerStyle={{ paddingTop: settings.enableBackgroundBlur ? '' : '26px' }}
                 onSettingsSave={onSettingsSave}
                 onSettingsShow={onSettingsShow}

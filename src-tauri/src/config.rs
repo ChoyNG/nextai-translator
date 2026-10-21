@@ -1,6 +1,6 @@
 use parking_lot::Mutex;
 use tauri::Manager;
-use tauri::{path::BaseDirectory, AppHandle};
+use tauri::AppHandle;
 
 use serde::{Deserialize, Serialize};
 
@@ -103,33 +103,8 @@ pub fn get_config_content() -> String {
 }
 
 pub fn get_config_content_by_app(app: &AppHandle) -> Result<String, String> {
-    let app_paths = app.path();
-    let app_config_dir = app_paths
-        .resolve("xyz.yetone.apps.openai-translator", BaseDirectory::Config)
-        .unwrap();
-    if !app_config_dir.exists() {
-        let old_config_dir = app_paths
-            .resolve("xyz.yetone.apps.nextai-translator", BaseDirectory::Config)
-            .unwrap();
-        if old_config_dir.exists() {
-            if std::fs::rename(&old_config_dir, &app_config_dir).is_err() {
-                std::fs::create_dir_all(&app_config_dir).unwrap();
-                if let Ok(entries) = std::fs::read_dir(&old_config_dir) {
-                    for entry in entries.flatten() {
-                        let target_path = app_config_dir.join(entry.file_name());
-                        if let Ok(file_type) = entry.file_type() {
-                            if file_type.is_file() {
-                                let _ = std::fs::copy(entry.path(), &target_path);
-                            }
-                        }
-                    }
-                }
-                let _ = std::fs::remove_dir_all(&old_config_dir);
-            }
-        } else {
-            std::fs::create_dir_all(&app_config_dir).unwrap();
-        }
-    }
+    let app_config_dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&app_config_dir).map_err(|e| e.to_string())?;
     let config_path = app_config_dir.join("config.json");
     if config_path.exists() {
         match std::fs::read_to_string(&config_path) {

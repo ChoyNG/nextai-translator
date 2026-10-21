@@ -25,6 +25,7 @@ import { ErrorFallback } from '../components/ErrorFallback'
 import {
     defaultAPIURL,
     exportToCsv,
+    exportToAnki,
     isDesktopApp,
     isTauri,
     getAssetUrl,
@@ -96,6 +97,7 @@ import { Provider, engineIcons, getEngine, providerToEngine } from '../engines'
 import color from 'color'
 import { useAtom } from 'jotai'
 import { showSettingsAtom } from '../store/setting'
+import { FollowUp } from './FollowUp'
 
 const cache = new LRUCache({
     max: 500,
@@ -1260,7 +1262,7 @@ function InnerTranslator(props: IInnerTranslatorProps) {
      * @param remove - Remove word from collection if true, otherwise add it to collection.
      */
     const onWordCollection = useCallback(
-        async (remove: boolean) => {
+        async (remove: boolean, description = translatedText) => {
             try {
                 if (remove) {
                     const wordInfo = await vocabularyService.getItem(editableText.trim())
@@ -1268,18 +1270,22 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                     setCollectedWordTotal((t: number) => t - 1)
                     setIsCollectedWord(false)
                 } else {
+                    const existing = await vocabularyService.getItem(editableText.trim())
                     await vocabularyService.putItem({
-                        word: editableText,
-                        reviewCount: 1,
-                        description: translatedText.slice(editableText.length + 1), // separate string after first '\n'
+                        word: editableText.trim(),
+                        reviewCount: existing?.reviewCount ?? 1,
+                        description,
                         updatedAt: new Date().valueOf().toString(),
-                        createdAt: new Date().valueOf().toString(),
+                        createdAt: existing?.createdAt ?? new Date().valueOf().toString(),
                     })
-                    setCollectedWordTotal((t: number) => t + 1)
+                    if (!existing) setCollectedWordTotal((t: number) => t + 1)
                     setIsCollectedWord(true)
                 }
+                return true
             } catch (e) {
                 console.error(e)
+                toast.error(String(e))
+                return false
             }
         },
         [editableText, setCollectedWordTotal, translatedText]
@@ -1938,6 +1944,16 @@ function InnerTranslator(props: IInnerTranslatorProps) {
             }
         } catch (e) {
             console.error(e)
+            toast.error(String(e))
+        }
+    }
+
+    const onAnkiExport = async () => {
+        try {
+            await exportToAnki(`nextai-study-${Date.now()}`, await vocabularyService.listItems())
+            toast(isDesktopApp() ? 'Anki 导入文件已保存到桌面' : 'Anki 导入文件已下载', { icon: '✓' })
+        } catch (error) {
+            toast.error(String(error))
         }
     }
 
@@ -2704,12 +2720,15 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                             showArrow
                                             placement='top'
                                         >
-                                            <div
+                                            <button
+                                                type='button'
+                                                aria-label='Open vocabulary actions'
+                                                style={{ border: 0, background: 'transparent' }}
                                                 className={styles.actionButton}
                                                 onClick={() => setShowWordbookButtons((e) => !e)}
                                             >
                                                 <AiOutlineFileSync size={15} />
-                                            </div>
+                                            </button>
                                         </StatefulTooltip>
                                     )}
                                     {showWordbookButtons && (
@@ -2736,6 +2755,9 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                                     <FcIdea size={15} onClick={() => setVocabularyType('article')} />
                                                 </div>
                                             </StatefulTooltip>
+                                            <Button size='mini' kind='tertiary' onClick={onAnkiExport}>
+                                                Anki 导出
+                                            </Button>
                                         </>
                                     )}
                                 </>
@@ -3077,6 +3099,16 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                                         />
                                                     </div>
                                                 </Tooltip>
+                                                {enableVocabulary && (
+                                                    <Button
+                                                        size='mini'
+                                                        kind='tertiary'
+                                                        onClick={() => onWordCollection(isCollectedWord)}
+                                                        aria-label='Save word or phrase'
+                                                    >
+                                                        {isCollectedWord ? '★ 已收藏' : '☆ 收藏单词 / 短语'}
+                                                    </Button>
+                                                )}
                                                 {isWordMode && (
                                                     <Tooltip content={t('Auto collect')} placement='bottom'>
                                                         <div
@@ -3175,6 +3207,15 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                             </>
                                         )}
                                     </div>
+                                )}
+                                {!isLoading && translatedText && !errorMessage && (
+                                    <FollowUp
+                                        key={`${editableText}:${targetLang}`}
+                                        text={editableText}
+                                        translation={translatedText}
+                                        target={targetLang ?? 'zh-Hans'}
+                                        onSave={(description) => onWordCollection(false, description)}
+                                    />
                                 )}
                                 {isNotLogin && settings?.provider === 'ChatGLM' && (
                                     <div

@@ -52,6 +52,7 @@ export function getManifest(browser: 'firefox' | 'chromium') {
         },
 
         host_permissions: [
+            'https://api.mymemory.translated.net/',
             'https://*.openai.com/',
             'https://*.openai.azure.com/',
             'https://*.ingest.sentry.io/',

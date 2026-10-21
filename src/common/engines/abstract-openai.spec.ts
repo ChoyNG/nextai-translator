@@ -3,6 +3,9 @@ import { AbstractOpenAI } from './abstract-openai'
 import { Ollama } from './ollama'
 import { IMessageRequest } from './interfaces'
 import { fetchSSE, getSettings } from '../utils'
+import { getUniversalFetch } from '../universal-fetch'
+
+vi.mock('../universal-fetch', () => ({ getUniversalFetch: vi.fn() }))
 
 vi.mock('../utils', () => {
     return {
@@ -66,6 +69,61 @@ function createMessageRequest() {
 }
 
 describe('AbstractOpenAI', () => {
+    it('reports unsupported model responses instead of crashing on filter', async () => {
+        const engine = new TestOpenAIEngine('custom-model', 'https://provider.example')
+        for (const body of [{}, null, { data: {} }]) {
+            vi.mocked(getUniversalFetch).mockReturnValue(
+                vi.fn().mockResolvedValue({ status: 200, json: async () => body })
+            )
+            await expect(engine.listModels('test-key')).rejects.toThrow('No models API support')
+        }
+    })
+
+    it('reports HTTP errors before parsing the model list', async () => {
+        vi.mocked(getUniversalFetch).mockReturnValue(
+            vi.fn().mockResolvedValue({ status: 401, json: async () => ({ error: {} }) })
+        )
+        await expect(new TestOpenAIEngine('gpt-5').listModels('test-key')).rejects.toThrow('HTTP 401')
+    })
+
+    it('ignores malformed model entries while retaining compatible models', async () => {
+        vi.mocked(getUniversalFetch).mockReturnValue(
+            vi.fn().mockResolvedValue({
+                status: 200,
+                json: async () => ({ data: [null, {}, { id: 123 }, { id: 'custom-model' }, { id: 'tts-1' }] }),
+            })
+        )
+        const engine = new TestOpenAIEngine('custom-model', 'https://provider.example')
+        expect(await engine.listModels('test-key')).toEqual([{ id: 'custom-model', name: 'custom-model' }])
+    })
+
+    it('preserves multi-turn messages when a model uses Responses', async () => {
+        const engine = new TestOpenAIEngine('gpt-5')
+        const { req } = createMessageRequest()
+        req.messages = [
+            { role: 'user', content: 'Explain ownership' },
+            { role: 'assistant', content: 'Responsibility' },
+            { role: 'user', content: 'Give examples' },
+        ]
+        vi.mocked(fetchSSE).mockImplementationOnce(async (_input: string, options: MockFetchSSEOptions) => {
+            expect(JSON.parse(options.body as string).input).toEqual(req.messages)
+        })
+        await engine.sendMessage(req)
+    })
+    it('preserves structured multi-turn messages for compatible chat APIs', async () => {
+        const engine = new TestOpenAIEngine('custom-model', 'https://provider.example', '/v1/chat/completions')
+        const { req } = createMessageRequest()
+        req.messages = [
+            { role: 'system', content: 'Tutor' },
+            { role: 'user', content: 'take ownership' },
+            { role: 'assistant', content: '承担责任' },
+            { role: 'user', content: 'Give examples' },
+        ]
+        vi.mocked(fetchSSE).mockImplementationOnce(async (_input: string, options: MockFetchSSEOptions) => {
+            expect(JSON.parse(options.body as string).messages).toEqual(req.messages)
+        })
+        await engine.sendMessage(req)
+    })
     beforeEach(() => {
         vi.clearAllMocks()
     })

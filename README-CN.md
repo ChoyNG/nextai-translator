@@ -1,3 +1,5 @@
+> **NextAI Study 改版：** 免费机翻、AI 连续追问、短语收藏、Anki / CSV 导出。请先看[使用与配置说明](README-STUDY.md)和[验证记录](VERIFICATION.md)。以下保留原项目文档。
+
 # 因为收到了 OpenAI 公司的品牌名称所有权的警告，所以此项目和此产品改名为 nextai translator，望您能够理解。
 
 <p align="center">

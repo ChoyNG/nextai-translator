@@ -1479,6 +1479,7 @@ export function ProviderSelector({ value, onChange, hasPromotion }: IProviderSel
 
     const options = utils.isDesktopApp()
         ? ([
+              { label: 'MyMemory · 免费机翻 / Free translation', id: 'MyMemory' },
               { label: 'OpenAI', id: 'OpenAI' },
               { label: 'TeamoRouter', id: 'TeamoRouter' },
               { label: 'OpenRouter', id: 'OpenRouter' },
@@ -1501,6 +1502,7 @@ export function ProviderSelector({ value, onChange, hasPromotion }: IProviderSel
               id: Provider
           }[])
         : ([
+              { label: 'MyMemory · 免费机翻 / Free translation', id: 'MyMemory' },
               { label: 'OpenAI', id: 'OpenAI' },
               { label: 'TeamoRouter', id: 'TeamoRouter' },
               { label: 'OpenRouter', id: 'OpenRouter' },
@@ -3037,9 +3039,16 @@ export function InnerSettings({
                         </div>
                         <div
                             style={{
-                                display: values.provider === 'OpenAI' ? 'block' : 'none',
+                                display:
+                                    values.provider === 'OpenAI' || values.provider === 'MyMemory' ? 'block' : 'none',
                             }}
                         >
+                            {values.provider === 'MyMemory' && (
+                                <p style={{ fontSize: 13, lineHeight: 1.7 }}>
+                                    免费机翻不需要 API Key；所选文本会发送到 MyMemory，额度由服务方限制。 下方 OpenAI
+                                    兼容配置仅用于 AI 追问，可稍后填写。
+                                </p>
+                            )}
                             <FormItem
                                 required={values.provider === 'OpenAI'}
                                 name='apiKeys'
@@ -3127,7 +3136,7 @@ export function InnerSettings({
                             <FormItem name='apiModel' label={t('API Model')} required={values.provider === 'OpenAI'}>
                                 <APIModelSelector
                                     provider='OpenAI'
-                                    currentProvider={values.provider}
+                                    currentProvider={values.provider === 'MyMemory' ? 'OpenAI' : values.provider}
                                     apiKey={values.apiKeys}
                                     onBlur={onBlur}
                                 />

@@ -95,11 +95,22 @@ export abstract class AbstractOpenAI extends AbstractEngine {
             method: 'GET',
             headers,
         })
+        if (resp.status < 200 || resp.status >= 300) {
+            throw new Error(`Models API: HTTP ${resp.status}. 请检查 API URL、密钥及模型列表权限。`)
+        }
         const data = await resp.json()
+        if (!Array.isArray(data?.data)) {
+            throw new Error(
+                '模型列表格式不兼容。可勾选“无模型 API 支持”（No models API support），保存后手动填写模型名。'
+            )
+        }
         return (
             data.data
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 .filter((model: any) => {
+                    if (typeof model?.id !== 'string' || !model.id.trim()) {
+                        return false
+                    }
                     if (apiUrl === 'https://api.openai.com') {
                         return model.id.includes('gpt')
                     }
@@ -229,7 +240,7 @@ export abstract class AbstractOpenAI extends AbstractEngine {
             delete body.top_p
             delete body.frequency_penalty
             delete body.presence_penalty
-            body['input'] = req.commandPrompt
+            body['input'] = req.messages ?? req.commandPrompt
             if (req.rolePrompt) {
                 body['instructions'] = req.rolePrompt
             }
@@ -255,7 +266,7 @@ export abstract class AbstractOpenAI extends AbstractEngine {
                     content: req.rolePrompt ? req.rolePrompt + '\n\n' + req.commandPrompt : req.commandPrompt,
                 },
             ]
-            body['messages'] = messages
+            body['messages'] = req.messages ?? messages
         }
         let finished = false // finished can be called twice because event.data is 1. "finish_reason":"stop"; 2. [DONE]
         let responsesHasStreamedText = false

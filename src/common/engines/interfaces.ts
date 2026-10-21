@@ -14,6 +14,8 @@ export interface IMessageRequest {
     commandPrompt: string
     modelOverride?: string
     thinkingBudget?: number
+    messages?: IMessage[]
+    translation?: { text: string; source: string; target: string; mode?: string }
     onMessage: (message: { content: string; role: string; isFullText?: boolean }) => Promise<void>
     onError: (error: string) => void
     onFinished: (reason: string) => void
