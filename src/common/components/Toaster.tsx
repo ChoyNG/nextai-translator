@@ -1,4 +1,4 @@
-import { resolveValue, useToaster } from 'react-hot-toast/headless'
+import { resolveValue, useToaster } from 'react-hot-toast'
 import { createUseStyles } from 'react-jss'
 import clsx from 'clsx'
 import { TTSDownloadNotifier } from './TTSDownloadNotifier'

@@ -9,7 +9,7 @@
 - Windows x64 原生 release 构建成功，使用工作目录内独立安装的 Rust 和已有 Visual Studio C++ 工具。构建保留了上游的 16 条编译警告，没有用禁用警告掩盖问题。
 - 真实 Windows 桌面验证通过：启动编译出的 NextAI → 在独立 RichTextBox 测试进程里实际拖选 `take ownership` → 自动显示 NextAI 取词图标 → 实际鼠标点击图标 → 桌面浮窗接收原选区 → 调用真实 MyMemory 服务并显示译文。测试完成后退出测试进程，恢复原鼠标位置和前台窗口。
 
-模型列表修复后重新通过类型检查、lint、102 项单测并重新构建 Windows 程序。上述 7 项浏览器测试与真实桌面取词验证来自修复前版本，本次未重复运行；真实服务的模型接口响应未读取。
+模型列表修复后重新通过类型检查、lint、102 项单测并重新构建 Windows 程序。随后发现通知组件从 `react-hot-toast/headless` 订阅，而调用方从 `react-hot-toast` 发送，导致保存已完成但成功提示不可见。统一入口后，新增真实设置页回归测试通过：点击保存、出现 Saved 提示、读回修改后的地址；全部 8 项浏览器端到端测试通过。独立原生实例的配置临时文件写入、替换和读回也通过。真实桌面取词验证来自此前版本；用户的真实服务 Key 和 AI 调用尚未验证。
 
 `browser-ui-preview.png` 为完整功能测试的真实界面截图，API 内容来自测试桩。`native-ui-preview.png` 为桌面版调用真实机翻后的 WebView2 界面截图。`native-verification.json` 记录桌面测试步骤。它们不代表对所有 Windows 应用的兼容性保证。
 
