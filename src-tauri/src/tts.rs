@@ -168,6 +168,8 @@ async fn download_model(app: &AppHandle, kind: ModelKind, root: &Path) -> Result
 
     let archive_path = root.join(format!("{}.tar.bz2.part", kind.directory()));
     let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(120))
         .build()
         .map_err(|err| format!("create TTS download client: {err}"))?;
     let mut last_error = String::from("no model mirror was available");

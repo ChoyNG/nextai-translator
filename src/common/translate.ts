@@ -5,6 +5,7 @@ import { Action } from './internal-services/db'
 import { codeBlock, oneLine, oneLineTrim } from 'common-tags'
 import { getEngine } from './engines'
 import { getSettings } from './utils'
+import { withRequestTimeout } from './request-timeout'
 
 export type TranslateMode = 'translate' | 'polishing' | 'summarize' | 'analyze' | 'explain-code' | 'big-bang'
 export type APIModel =
@@ -426,32 +427,40 @@ If you understand, say "yes", and then we will begin.`
     }
 
     const engine = getEngine(effectiveProvider)
-    await engine.sendMessage({
-        signal: query.signal,
-        rolePrompt,
-        commandPrompt,
-        modelOverride: effectiveModel,
-        thinkingBudget,
-        translation:
-            query.mode === 'big-bang'
-                ? undefined
-                : {
-                      text: query.selectedWord || query.text,
-                      source: query.detectFrom,
-                      target: query.detectTo,
-                      mode: query.action.mode,
-                  },
-        onMessage: async (message) => {
-            await query.onMessage({ ...message, isWordMode })
+    await withRequestTimeout(
+        async (signal) => {
+            if (signal.aborted) return
+            await engine.sendMessage({
+                signal,
+                rolePrompt,
+                commandPrompt,
+                modelOverride: effectiveModel,
+                thinkingBudget,
+                translation:
+                    query.mode === 'big-bang'
+                        ? undefined
+                        : {
+                              text: query.selectedWord || query.text,
+                              source: query.detectFrom,
+                              target: query.detectTo,
+                              mode: query.action.mode,
+                          },
+                onMessage: async (message) => {
+                    if (!signal.aborted) await query.onMessage({ ...message, isWordMode })
+                },
+                onFinished: (reason) => {
+                    if (!signal.aborted) query.onFinish(reason)
+                },
+                onError: (error) => {
+                    if (!signal.aborted) query.onError(error)
+                },
+                onStatusCode: (statusCode) => {
+                    if (!signal.aborted) query.onStatusCode?.(statusCode)
+                },
+            })
         },
-        onFinished: (reason) => {
-            query.onFinish(reason)
-        },
-        onError: (error) => {
-            query.onError(error)
-        },
-        onStatusCode: (statusCode) => {
-            query.onStatusCode?.(statusCode)
-        },
-    })
+        query.signal,
+        60000,
+        `${effectiveProvider} 翻译请求超时（60 秒）。请检查服务是否启动、代理及网络连接，或切换免费机翻。`
+    )
 }

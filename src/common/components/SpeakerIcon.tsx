@@ -6,6 +6,7 @@ import SpeakerMotion from './SpeakerMotion'
 import { RxSpeakerLoud } from 'react-icons/rx'
 import { IconBaseProps } from 'react-icons'
 import { SpinnerIcon } from './SpinnerIcon'
+import toast from 'react-hot-toast'
 
 interface ISpeakerIconProps extends IconBaseProps {
     divRef?: React.Ref<HTMLDivElement>
@@ -65,6 +66,7 @@ export function SpeakerIcon({
             volume: volume,
             rate: rate,
             onFinish: () => {
+                setIsLoading(false)
                 setIsSpeaking(false)
                 onPlaybackEnd?.()
             },
@@ -75,6 +77,7 @@ export function SpeakerIcon({
             onWordBoundary,
         }).catch((e) => {
             console.error('TTS error:', e)
+            if (!signal.aborted) toast.error(String(e))
             setIsLoading(false)
             setIsSpeaking(false)
             onPlaybackEnd?.()
@@ -84,6 +87,15 @@ export function SpeakerIcon({
     return (
         <div
             ref={divRef}
+            role='button'
+            tabIndex={0}
+            aria-label={isSpeaking || isLoading ? '停止朗读' : '朗读'}
+            onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    event.currentTarget.click()
+                }
+            }}
             style={{
                 alignItems: 'center',
                 display: 'inline-flex',

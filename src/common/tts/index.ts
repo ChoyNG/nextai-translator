@@ -4,7 +4,7 @@ import { isLocalTTSLanguage, speak as localSpeak } from './local-tts'
 import { LangCode } from '../lang'
 import * as utils from '../utils'
 
-export const defaultTTSProvider: TTSProvider = 'LocalTTS'
+export const defaultTTSProvider: TTSProvider = 'WebSpeech'
 
 export const langCode2TTSLang: Partial<Record<LangCode, string>> = {
     'en': 'en-US',
@@ -70,6 +70,7 @@ export const ttsLangTestTextMap: Partial<Record<keyof typeof langCode2TTSLang, s
 
 let supportVoices: SpeechSynthesisVoice[] = []
 if (window.speechSynthesis) {
+    supportVoices = window.speechSynthesis.getVoices()
     window.speechSynthesis.onvoiceschanged = () => {
         supportVoices = speechSynthesis.getVoices()
     }
@@ -130,15 +131,15 @@ export async function doSpeak({
 
     const ttsLang = langCode2TTSLang[lang] ?? 'en-US'
 
+    if (signal.aborted) return
+    if (!window.speechSynthesis) throw new Error('系统不支持语音朗读。')
+    supportVoices = speechSynthesis.getVoices()
     const utterance = new SpeechSynthesisUtterance()
-    if (onFinish) {
-        utterance.addEventListener('end', onFinish, { once: true })
-    }
 
     utterance.text = text
     utterance.lang = ttsLang
     utterance.rate = rate
-    utterance.volume = volume ? volume / 100 : 1
+    utterance.volume = (volume ?? 100) / 100
     if (onWordBoundary) {
         const { findSpeechWordIndex } = await import('./speech-segments')
         utterance.addEventListener('boundary', (event) => {
@@ -156,14 +157,44 @@ export async function doSpeak({
     const settingsVoice = supportVoices.find((v) => v.voiceURI === voice)
     utterance.voice = settingsVoice ?? defaultVoice
 
-    signal.addEventListener(
-        'abort',
-        () => {
+    if (signal.aborted) return
+    await new Promise<void>((resolve, reject) => {
+        let settled = false
+        const finish = (error?: Error) => {
+            if (settled) return
+            settled = true
+            clearTimeout(startTimer)
+            signal.removeEventListener('abort', abort)
+            onFinish?.()
+            if (error) reject(error)
+            else resolve()
+        }
+        const abort = () => {
+            finish()
             speechSynthesis.cancel()
-        },
-        { once: true }
-    )
-
-    onStartSpeaking?.()
-    speechSynthesis.speak(utterance)
+        }
+        const startTimer = setTimeout(() => {
+            finish(new Error('系统朗读启动超时，请检查 TTS 设置中的声音和系统音频。'))
+            speechSynthesis.cancel()
+        }, 10000)
+        signal.addEventListener('abort', abort, { once: true })
+        utterance.addEventListener(
+            'start',
+            () => {
+                if (settled) return
+                clearTimeout(startTimer)
+                onStartSpeaking?.()
+            },
+            { once: true }
+        )
+        utterance.addEventListener('end', () => finish(), { once: true })
+        utterance.addEventListener('error', (event) => finish(new Error(`系统朗读失败：${event.error}`)), {
+            once: true,
+        })
+        try {
+            speechSynthesis.speak(utterance)
+        } catch (error) {
+            finish(error instanceof Error ? error : new Error(String(error)))
+        }
+    })
 }

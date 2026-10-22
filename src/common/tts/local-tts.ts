@@ -1,3 +1,4 @@
+import { withRequestTimeout } from '../request-timeout'
 import { invoke } from '@tauri-apps/api/core'
 import { LangCode } from '../lang'
 import { SpeakOptions } from './types'
@@ -287,7 +288,12 @@ export async function speak({
     const pending: Array<Promise<SynthesisResult> | undefined> = new Array(chunks.length)
     const queue = (index: number) => {
         if (index < chunks.length && !pending[index]) {
-            pending[index] = synthesize(chunks[index], lang, rate).then(
+            pending[index] = withRequestTimeout(
+                () => synthesize(chunks[index], lang, rate),
+                signal,
+                30000,
+                '语音合成超时（30 秒）。请在 TTS 设置中选择 System Default，或检查语音模型下载网络。'
+            ).then(
                 (audio) => ({ ok: true, audio }),
                 (error: unknown) => ({ ok: false, error })
             )

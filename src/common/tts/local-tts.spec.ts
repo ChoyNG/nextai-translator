@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { isLocalTTSLanguage, speak, splitSpeechText } from './local-tts'
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }))
@@ -97,4 +97,19 @@ describe('local TTS text preparation', () => {
         ])
         expect(onStartSpeaking).toHaveBeenCalledOnce()
     })
+})
+
+afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+})
+it('settles playback when native synthesis never responds', async () => {
+    vi.useFakeTimers()
+    vi.mocked(invoke).mockImplementation(() => new Promise(() => undefined))
+    const onFinish = vi.fn()
+    const result = speak({ text: 'mammoths', lang: 'en', signal: new AbortController().signal, onFinish })
+    const assertion = expect(result).rejects.toThrow('超时')
+    await vi.advanceTimersByTimeAsync(30000)
+    await assertion
+    expect(onFinish).toHaveBeenCalledOnce()
 })

@@ -48,7 +48,10 @@ pub async fn fetch_stream(id: String, url: String, options_str: String) -> Resul
         headers.insert(key.parse::<HeaderName>().unwrap(), value.parse().unwrap());
     }
 
-    let mut client_builder = Client::builder().default_headers(headers);
+    let mut client_builder = Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(60))
+        .default_headers(headers);
 
     if let Ok(config) = get_config() {
         if let Some(proxy_config) = config.proxy {
