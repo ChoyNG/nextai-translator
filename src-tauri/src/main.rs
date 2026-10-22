@@ -50,6 +50,7 @@ use crate::windows::{
 };
 use crate::writing::{finish_writing, write_to_input, writing_command};
 
+#[cfg(not(target_os = "windows"))]
 use mouce::{Mouse, MouseActions};
 use once_cell::sync::OnceCell;
 #[cfg(debug_assertions)]
@@ -66,6 +67,7 @@ pub static APP_HANDLE: OnceCell<AppHandle> = OnceCell::new();
 pub static ALWAYS_ON_TOP: AtomicBool = AtomicBool::new(false);
 pub static CPU_VENDOR: Mutex<String> = Mutex::new(String::new());
 pub static SELECTED_TEXT: Mutex<String> = Mutex::new(String::new());
+pub static PREVIOUS_PRESS_POSITION: Mutex<(i32, i32)> = Mutex::new((0, 0));
 pub static PREVIOUS_PRESS_TIME: Mutex<u128> = Mutex::new(0);
 pub static PREVIOUS_RELEASE_TIME: Mutex<u128> = Mutex::new(0);
 pub static PREVIOUS_RELEASE_POSITION: Mutex<(i32, i32)> = Mutex::new((0, 0));
@@ -172,177 +174,205 @@ fn bind_mouse_hook() {
         return;
     }
 
-    let mut mouse_manager = Mouse::new();
-
-    let hook_result = mouse_manager.hook(Box::new(|event| {
-        match event {
-            mouce::common::MouseEvent::Press(mouce::common::MouseButton::Left) => {
-                let config = config::get_config().unwrap();
-                let always_show_icons = config.always_show_icons.unwrap_or(true);
-                if !always_show_icons {
-                    return;
+    #[cfg(target_os = "windows")]
+    std::thread::spawn(|| unsafe {
+        use ::windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
+        use ::windows::Win32::UI::WindowsAndMessaging::{
+            CallNextHookEx, GetMessageW, SetWindowsHookExW, UnhookWindowsHookEx, MSG, WH_MOUSE_LL,
+            WM_LBUTTONDOWN, WM_LBUTTONUP,
+        };
+        unsafe extern "system" fn callback(code: i32, w: WPARAM, l: LPARAM) -> LRESULT {
+            if code >= 0 {
+                use mouce::common::{MouseButton, MouseEvent};
+                match w.0 as u32 {
+                    WM_LBUTTONDOWN => handle_mouse_event(&MouseEvent::Press(MouseButton::Left)),
+                    WM_LBUTTONUP => handle_mouse_event(&MouseEvent::Release(MouseButton::Left)),
+                    _ => {}
                 }
-                let current_press_time = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis();
-                *PREVIOUS_PRESS_TIME.lock() = current_press_time;
             }
-            mouce::common::MouseEvent::Release(mouce::common::MouseButton::Left) => {
-                let config = config::get_config().unwrap();
-                let always_show_icons = config.always_show_icons.unwrap_or(true);
-                if !always_show_icons {
-                    windows::delete_thumb();
-                    return;
-                }
-                let current_release_time = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis();
-                let mut is_text_selected_event = false;
-                let (x, y): (i32, i32) = windows::get_mouse_location().unwrap();
-                let (prev_release_x, prev_release_y) = { *PREVIOUS_RELEASE_POSITION.lock() };
-                {
-                    *PREVIOUS_RELEASE_POSITION.lock() = (x, y);
-                }
-                let mouse_distance =
-                    (((x - prev_release_x).pow(2) + (y - prev_release_y).pow(2)) as f64).sqrt();
-                let previous_press_time: u128;
-                let previous_release_time: u128;
-                {
-                    let previous_press_time_lock = PREVIOUS_PRESS_TIME.lock();
-                    let mut previous_release_time_lock = PREVIOUS_RELEASE_TIME.lock();
-                    previous_release_time = *previous_release_time_lock;
-                    *previous_release_time_lock = current_release_time;
-                    previous_press_time = *previous_press_time_lock;
-                }
-                let is_pressed = previous_release_time < previous_press_time;
-                let pressed_time = current_release_time - previous_press_time;
-                let is_double_click =
-                    current_release_time - previous_release_time < 700 && mouse_distance < 10.0;
-                if is_pressed && pressed_time > 300 && mouse_distance > 20.0 {
-                    is_text_selected_event = true;
-                }
-                if previous_release_time != 0 && is_double_click {
-                    is_text_selected_event = true;
-                }
-                let is_click_on_thumb = match APP_HANDLE.get() {
-                    Some(handle) => match handle.get_webview_window(windows::THUMB_WIN_NAME) {
-                        Some(window) => match window.outer_position() {
-                            Ok(position) => {
-                                let scale_factor = window.scale_factor().unwrap_or(1.0);
-                                if let Ok(size) = window.outer_size() {
-                                    if cfg!(target_os = "macos") {
-                                        let LogicalPosition { x: x1, y: y1 } =
-                                            position.to_logical::<i32>(scale_factor);
-                                        let LogicalSize {
-                                            width: mut w,
-                                            height: mut h,
-                                        } = size.to_logical::<i32>(scale_factor);
-                                        if cfg!(target_os = "windows") {
-                                            w = (20.0 as f64 * scale_factor) as i32;
-                                            h = (20.0 as f64 * scale_factor) as i32;
-                                        }
-                                        let (x2, y2) = (x1 + w, y1 + h);
-                                        let res = x >= x1 && x <= x2 && y >= y1 && y <= y2;
-                                        res
-                                    } else {
-                                        let PhysicalPosition { x: x1, y: y1 } = position;
-                                        let PhysicalSize {
-                                            width: mut w,
-                                            height: mut h,
-                                        } = size;
-                                        if cfg!(target_os = "windows") {
-                                            w = (20.0 as f64 * scale_factor) as u32;
-                                            h = (20.0 as f64 * scale_factor) as u32;
-                                        }
-                                        let (x2, y2) = (x1 + w as i32, y1 + h as i32);
-                                        let res = x >= x1 && x <= x2 && y >= y1 && y <= y2;
-                                        res
+            CallNextHookEx(None, code, w, l)
+        }
+        match SetWindowsHookExW(WH_MOUSE_LL, Some(callback), None, 0) {
+            Ok(hook) => {
+                println!("mouse event Hooked!");
+                // A live MSG and message pump keep the low-level hook's owning thread alive.
+                let mut message = MSG::default();
+                while GetMessageW(&mut message, None, 0, 0).0 > 0 {}
+                let _ = UnhookWindowsHookEx(hook);
+            }
+            Err(error) => eprintln!("Mouse hook failed: {error}"),
+        }
+    });
+    #[cfg(not(target_os = "windows"))]
+    {
+        let mut mouse_manager = Mouse::new();
+        if let Err(error) = mouse_manager.hook(Box::new(handle_mouse_event)) {
+            eprintln!("Mouse hook failed: {error}");
+        }
+    }
+}
+
+fn handle_mouse_event(event: &mouce::common::MouseEvent) {
+    match event {
+        mouce::common::MouseEvent::Press(mouce::common::MouseButton::Left) => {
+            let config = config::get_config().unwrap();
+            let always_show_icons = config.always_show_icons.unwrap_or(true);
+            if !always_show_icons {
+                return;
+            }
+            let current_press_time = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis();
+            *PREVIOUS_PRESS_TIME.lock() = current_press_time;
+            *PREVIOUS_PRESS_POSITION.lock() = windows::get_mouse_location().unwrap_or_default();
+        }
+        mouce::common::MouseEvent::Release(mouce::common::MouseButton::Left) => {
+            let config = config::get_config().unwrap();
+            let always_show_icons = config.always_show_icons.unwrap_or(true);
+            if !always_show_icons {
+                windows::delete_thumb();
+                return;
+            }
+            let current_release_time = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis();
+            let mut is_text_selected_event = false;
+            let (x, y): (i32, i32) = windows::get_mouse_location().unwrap();
+            let (prev_release_x, prev_release_y) = { *PREVIOUS_RELEASE_POSITION.lock() };
+            {
+                *PREVIOUS_RELEASE_POSITION.lock() = (x, y);
+            }
+            let mouse_distance =
+                (((x - prev_release_x).pow(2) + (y - prev_release_y).pow(2)) as f64).sqrt();
+            let previous_press_time: u128;
+            let previous_release_time: u128;
+            {
+                let previous_press_time_lock = PREVIOUS_PRESS_TIME.lock();
+                let mut previous_release_time_lock = PREVIOUS_RELEASE_TIME.lock();
+                previous_release_time = *previous_release_time_lock;
+                *previous_release_time_lock = current_release_time;
+                previous_press_time = *previous_press_time_lock;
+            }
+            let is_pressed = previous_release_time < previous_press_time;
+            let (press_x, press_y) = *PREVIOUS_PRESS_POSITION.lock();
+            let dragged = (x - press_x).pow(2) + (y - press_y).pow(2) > 25;
+            let is_double_click =
+                current_release_time - previous_release_time < 700 && mouse_distance < 10.0;
+            if is_pressed && dragged {
+                is_text_selected_event = true;
+            }
+            if previous_release_time != 0 && is_double_click {
+                is_text_selected_event = true;
+            }
+            let is_click_on_thumb = match APP_HANDLE.get() {
+                Some(handle) => match handle.get_webview_window(windows::THUMB_WIN_NAME) {
+                    Some(window) => match window.outer_position() {
+                        Ok(position) => {
+                            let scale_factor = window.scale_factor().unwrap_or(1.0);
+                            if let Ok(size) = window.outer_size() {
+                                if cfg!(target_os = "macos") {
+                                    let LogicalPosition { x: x1, y: y1 } =
+                                        position.to_logical::<i32>(scale_factor);
+                                    let LogicalSize {
+                                        width: mut w,
+                                        height: mut h,
+                                    } = size.to_logical::<i32>(scale_factor);
+                                    if cfg!(target_os = "windows") {
+                                        w = (20.0 as f64 * scale_factor) as i32;
+                                        h = (20.0 as f64 * scale_factor) as i32;
                                     }
+                                    let (x2, y2) = (x1 + w, y1 + h);
+                                    let res = x >= x1 && x <= x2 && y >= y1 && y <= y2;
+                                    res
                                 } else {
-                                    false
+                                    let PhysicalPosition { x: x1, y: y1 } = position;
+                                    let PhysicalSize {
+                                        width: mut w,
+                                        height: mut h,
+                                    } = size;
+                                    if cfg!(target_os = "windows") {
+                                        w = (20.0 as f64 * scale_factor) as u32;
+                                        h = (20.0 as f64 * scale_factor) as u32;
+                                    }
+                                    let (x2, y2) = (x1 + w as i32, y1 + h as i32);
+                                    let res = x >= x1 && x <= x2 && y >= y1 && y <= y2;
+                                    res
                                 }
-                            }
-                            Err(err) => {
-                                println!("err: {:?}", err);
+                            } else {
                                 false
                             }
-                        },
-                        None => false,
+                        }
+                        Err(err) => {
+                            println!("err: {:?}", err);
+                            false
+                        }
                     },
                     None => false,
-                };
-                // debug_println!("is_text_selected_event: {}", is_text_selected_event);
-                // debug_println!("is_click_on_thumb: {}", is_click_on_thumb);
-                if !is_text_selected_event && !is_click_on_thumb {
-                    windows::close_thumb();
-                    // println!("not text selected event");
-                    // println!("is_click_on_thumb: {}", is_click_on_thumb);
-                    // println!("mouse_distance: {}", mouse_distance);
-                    // println!("pressed_time: {}", pressed_time);
-                    // println!("released_time: {}", current_release_time - previous_release_time);
-                    // println!("is_double_click: {}", is_double_click);
+                },
+                None => false,
+            };
+            // debug_println!("is_text_selected_event: {}", is_text_selected_event);
+            // debug_println!("is_click_on_thumb: {}", is_click_on_thumb);
+            if !is_text_selected_event && !is_click_on_thumb {
+                windows::close_thumb();
+                // println!("not text selected event");
+                // println!("is_click_on_thumb: {}", is_click_on_thumb);
+                // println!("mouse_distance: {}", mouse_distance);
+                // println!("pressed_time: {}", pressed_time);
+                // println!("released_time: {}", current_release_time - previous_release_time);
+                // println!("is_double_click: {}", is_double_click);
+                return;
+            }
+
+            if !is_click_on_thumb {
+                if RELEASE_THREAD_ID.is_locked() {
                     return;
                 }
-
-                if !is_click_on_thumb {
-                    if RELEASE_THREAD_ID.is_locked() {
-                        return;
-                    }
-                    std::thread::spawn(move || {
-                        #[cfg(target_os = "macos")]
-                        {
-                            if !utils::is_valid_selected_frame().unwrap_or(false) {
-                                debug_println!("No valid selected frame");
-                                windows::close_thumb();
-                                return;
-                            }
-                        }
-
-                        let _lock = RELEASE_THREAD_ID.lock();
-                        let selected_text = get_selected_text().unwrap_or_default();
-                        if !selected_text.is_empty() {
-                            {
-                                *SELECTED_TEXT.lock() = selected_text;
-                            }
-                            windows::show_thumb(x, y);
-                        } else {
+                std::thread::spawn(move || {
+                    #[cfg(target_os = "macos")]
+                    {
+                        if !utils::is_valid_selected_frame().unwrap_or(false) {
+                            debug_println!("No valid selected frame");
                             windows::close_thumb();
+                            return;
                         }
-                    });
-                } else {
-                    windows::close_thumb();
-                    let selected_text = (*SELECTED_TEXT.lock()).to_string();
+                    }
+
+                    let _lock = RELEASE_THREAD_ID.lock();
+                    let selected_text = get_selected_text().unwrap_or_default();
                     if !selected_text.is_empty() {
-                        let use_compact = config::get_config()
-                            .ok()
-                            .and_then(|c| c.use_compact_lookup)
-                            .unwrap_or(false);
-                        if use_compact {
-                            let window = windows::show_inline_lookup_window(false, true, false);
-                            utils::send_text(selected_text);
-                            let _ = window.set_focus();
-                        } else {
-                            remember_active_window();
-                            let window = windows::show_translator_window(false, true, false);
-                            utils::send_text(selected_text);
-                            window.set_focus().unwrap();
+                        {
+                            *SELECTED_TEXT.lock() = selected_text;
                         }
+                        windows::show_thumb(x, y);
+                    } else {
+                        windows::close_thumb();
+                    }
+                });
+            } else {
+                windows::close_thumb();
+                let selected_text = (*SELECTED_TEXT.lock()).to_string();
+                if !selected_text.is_empty() {
+                    let use_compact = config::get_config()
+                        .ok()
+                        .and_then(|c| c.use_compact_lookup)
+                        .unwrap_or(false);
+                    if use_compact {
+                        let window = windows::show_inline_lookup_window(false, true, false);
+                        utils::send_text(selected_text);
+                        let _ = window.set_focus();
+                    } else {
+                        remember_active_window();
+                        let window = windows::show_translator_window(false, true, false);
+                        utils::send_text(selected_text);
+                        window.set_focus().unwrap();
                     }
                 }
             }
-            _ => {}
         }
-    }));
-
-    match hook_result {
-        Ok(_) => {
-            println!("mouse event Hooked!");
-        }
-        Err(e) => {
-            println!("Error: {}", e);
-        }
+        _ => {}
     }
 }
 
@@ -445,14 +475,10 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
-            println!("{}, {argv:?}, {cwd}", app.package_info().name);
-            app.notification()
-                .builder()
-                .title("This app is already running!")
-                .body("You can find it in the tray menu.")
-                .show()
-                .unwrap();
+        .plugin(tauri_plugin_single_instance::init(|_app, argv, _cwd| {
+            if !argv.iter().any(|arg| arg == "--silently") {
+                windows::show_translator_window(false, false, true);
+            }
         }))
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,

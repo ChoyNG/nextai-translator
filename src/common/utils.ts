@@ -473,20 +473,18 @@ export async function fetchSSE(input: string, options: FetchSSEOptions) {
             options.signal?.addEventListener('abort', () => {
                 isAborted = true
                 unlisten?.()
-                reject()
+                reject(new DOMException('Aborted', 'AbortError'))
                 emit('abort-fetch-stream', { id })
             })
-            listen('fetch-stream-status-code', (event: Event<{ id: string; status: number }>) => {
+            const statusReady = listen('fetch-stream-status-code', (event: Event<{ id: string; status: number }>) => {
                 if (isAborted) {
                     return
                 }
                 if (event.payload.id === id) {
                     onStatusCode?.(event.payload.status)
                 }
-            })
-                .then(track)
-                .catch((e) => reject(e))
-            listen(
+            }).then(track)
+            const chunksReady = listen(
                 'fetch-stream-chunk',
                 (event: Event<{ id: string; data: string; done: boolean; status: number }>) => {
                     if (isAborted) {
@@ -518,14 +516,14 @@ export async function fetchSSE(input: string, options: FetchSSEOptions) {
                         sseParser.feed(payload.data)
                     }
                 }
-            )
-                .then(track)
-                .catch((e) => {
-                    reject(e)
-                })
+            ).then(track)
 
-            commands
-                .fetchStream(id, input, JSON.stringify(fetchOptions))
+            Promise.all([statusReady, chunksReady])
+                .then(async () => {
+                    if (isAborted) return
+                    const result = await commands.fetchStream(id, input, JSON.stringify(fetchOptions))
+                    if (result.status === 'error') throw new Error(result.error)
+                })
                 .catch((e) => {
                     reject(e)
                 })

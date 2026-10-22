@@ -52,21 +52,36 @@ test('free phrase translation, contextual AI chat, collection and Anki export', 
     await expect(page.getByText('主动承担责任', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Save word or phrase' }).click()
     await expect(page.getByRole('button', { name: 'Save word or phrase' })).toContainText('已收藏')
-    await page.locator('[data-testid=ai-follow-up] summary').click()
+    expect(
+        await background.evaluate(() => (globalThis as unknown as { studyCalls: unknown[] }).studyCalls.length)
+    ).toBe(0)
+    await page.getByRole('button', { name: '✦ AI 再译', exact: true }).click()
+    await expect(page.getByText('主动承担责任', { exact: true })).toBeVisible()
+    await expect(page.getByText('For example: I take ownership of this release.', { exact: true })).toBeVisible()
+    expect((await page.evaluate(() => chrome.storage.sync.get('provider'))).provider).toBe('MyMemory')
     const question = page.getByRole('textbox', { name: 'AI follow-up question' })
     await question.fill('Explain this phrase')
     await page.getByRole('button', { name: '发送', exact: true }).click()
-    await expect(page.getByText('For example: I take ownership of this release.', { exact: true })).toBeVisible()
+    await expect(page.getByText('For example: I take ownership of this release.', { exact: true })).toHaveCount(2)
     await question.fill('Give another workplace example')
     await page.getByRole('button', { name: '发送', exact: true }).click()
     await expect(page.getByRole('button', { name: '收藏翻译和这段对话' })).toBeEnabled()
     const calls = await background.evaluate(
         () => (globalThis as unknown as { studyCalls: { messages: { role: string; content: string }[] }[] }).studyCalls
     )
-    expect(calls).toHaveLength(2)
-    expect(calls[1].messages.map((message) => message.role)).toEqual(['system', 'user', 'user', 'assistant', 'user'])
-    expect(calls[1].messages[1].content).toContain('take ownership')
-    expect(calls[1].messages[4].content).toBe('Give another workplace example')
+    expect(calls).toHaveLength(3)
+    expect(calls[0].messages[2].content).toContain('重新翻译')
+    expect(calls[2].messages.map((message) => message.role)).toEqual([
+        'system',
+        'user',
+        'user',
+        'assistant',
+        'user',
+        'assistant',
+        'user',
+    ])
+    expect(calls[2].messages[1].content).toContain('take ownership')
+    expect(calls[2].messages[6].content).toBe('Give another workplace example')
     await page.getByRole('button', { name: '收藏翻译和这段对话' }).click()
     await expect(page.getByRole('button', { name: '✓ 已保存到生词本' })).toBeVisible()
     await page.getByRole('button', { name: 'Open vocabulary actions' }).click()

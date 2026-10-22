@@ -95,4 +95,17 @@ describe('AI follow-up conversation', () => {
         expect(request.messages).toHaveLength(3)
         expect(request.messages?.[2].content).toBe('Retry question')
     })
+    it('only calls AI when retranslate is clicked and continues the same conversation', async () => {
+        expect(mocks.send).not.toHaveBeenCalled()
+        const button = Array.from(container.querySelectorAll('button')).find((item) => item.textContent === '✦ AI 再译')
+        expect(button).toBeDefined()
+        await act(async () => button!.click())
+        expect(container.querySelector('details')?.open).toBe(true)
+        expect(mocks.send.mock.calls[0][0].commandPrompt).toContain('重新翻译')
+        await ask('Why this wording?')
+        const request = mocks.send.mock.calls[1][0] as IMessageRequest
+        expect(request.messages?.[1].content).toContain('承担责任')
+        expect(request.messages?.[3].content).toBe('Example answer')
+        expect(request.messages?.[4].content).toBe('Why this wording?')
+    })
 })
