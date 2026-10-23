@@ -24,3 +24,12 @@ export function isResponsesCapableOpenAIModel(model: string | undefined | null):
 export function getRecommendedOpenAIAPIPath(model: string | undefined | null): string {
     return isResponsesCapableOpenAIModel(model) ? OPENAI_RESPONSES_API_PATH : OPENAI_CHAT_COMPLETIONS_API_PATH
 }
+
+export function validateOpenAIAPIPath(path: string): string {
+    if (!path.startsWith('/') || path.startsWith('//') || /[?#]/.test(path) || /\/keys\/?$/.test(path)) {
+        throw new Error(
+            'AI API 路径应为 /v1/responses 或 /v1/chat/completions，不能填写管理网页地址。免费机翻不使用此配置。'
+        )
+    }
+    return path
+}

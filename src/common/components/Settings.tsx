@@ -2059,13 +2059,6 @@ export function InnerSettings({
         [isTauri, onSave, setSettings, refreshThemeType, t, trackTauriEvent]
     )
 
-    const onBlur = useCallback(async () => {
-        if (values.apiKeys && !_.isEqual(values, prevValues)) {
-            await utils.setSettings(values)
-            setPrevValues(values)
-        }
-    }, [prevValues, values])
-
     const isDesktopApp = utils.isDesktopApp()
 
     const styles = useStyles({ theme, themeType, isDesktopApp })
@@ -2555,7 +2548,7 @@ export function InnerSettings({
                         }}
                     >
                         <FormItem name='i18n' label={t('i18n')}>
-                            <Ii18nSelector onBlur={onBlur} />
+                            <Ii18nSelector />
                         </FormItem>
                         <FormItem
                             name='provider'
@@ -2614,7 +2607,7 @@ export function InnerSettings({
                                 required={values.provider === 'Ollama'}
                                 caption={t('Generally, there is no need to modify this item.')}
                             >
-                                <Input size='compact' onBlur={onBlur} />
+                                <Input size='compact' />
                             </FormItem>
                             <FormItem
                                 name='ollamaModelLifetimeInMemory'
@@ -2645,7 +2638,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <APIModelSelector provider='Ollama' currentProvider={values.provider} onBlur={onBlur} />
+                                <APIModelSelector provider='Ollama' currentProvider={values.provider} />
                             </FormItem>
                             <div
                                 style={{
@@ -2685,14 +2678,13 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                             <FormItem name='groqAPIModel' label={t('API Model')} required={values.provider === 'Groq'}>
                                 <APIModelSelector
                                     provider='Groq'
                                     currentProvider={values.provider}
                                     apiKey={values.groqAPIKey}
-                                    onBlur={onBlur}
                                 />
                             </FormItem>
                             <div
@@ -2714,7 +2706,7 @@ export function InnerSettings({
                                 required={values.provider === 'Groq'}
                                 caption={t('Generally, there is no need to modify this item.')}
                             >
-                                <Input size='compact' onBlur={onBlur} />
+                                <Input size='compact' />
                             </FormItem>
                             <FormItem
                                 name='groqAPIURLPath'
@@ -2722,7 +2714,7 @@ export function InnerSettings({
                                 required={values.provider === 'Groq'}
                                 caption={t('Generally, there is no need to modify this item.')}
                             >
-                                <Input size='compact' onBlur={onBlur} />
+                                <Input size='compact' />
                             </FormItem>
                         </div>
                         <div
@@ -2749,7 +2741,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                             <FormItem
                                 name='claudeAPIModel'
@@ -2760,7 +2752,6 @@ export function InnerSettings({
                                     provider='Claude'
                                     currentProvider={values.provider}
                                     apiKey={values.claudeAPIKey}
-                                    onBlur={onBlur}
                                 />
                             </FormItem>
                             <div
@@ -2777,7 +2768,7 @@ export function InnerSettings({
                                 </FormItem>
                             </div>
                             <FormItem name='claudeThinking' label={t('Enable Extended Thinking')}>
-                                <MyCheckbox onBlur={onBlur} />
+                                <MyCheckbox />
                             </FormItem>
                             <div
                                 style={{
@@ -2785,7 +2776,7 @@ export function InnerSettings({
                                 }}
                             >
                                 <FormItem name='claudeThinkingLevel' label={t('Thinking Level')}>
-                                    <ThinkingLevelSelector onBlur={onBlur} />
+                                    <ThinkingLevelSelector />
                                 </FormItem>
                             </div>
                             <FormItem
@@ -2794,7 +2785,7 @@ export function InnerSettings({
                                 required={values.provider === 'Claude'}
                                 caption={t('Generally, there is no need to modify this item.')}
                             >
-                                <Input size='compact' onBlur={onBlur} />
+                                <Input size='compact' />
                             </FormItem>
                             <FormItem
                                 name='claudeAPIURLPath'
@@ -2802,7 +2793,7 @@ export function InnerSettings({
                                 required={values.provider === 'Claude'}
                                 caption={t('Generally, there is no need to modify this item.')}
                             >
-                                <Input size='compact' onBlur={onBlur} />
+                                <Input size='compact' />
                             </FormItem>
                         </div>
                         <div
@@ -2833,7 +2824,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                             <FormItem
                                 required={values.provider === 'Kimi' && utils.isDesktopApp()}
@@ -2858,7 +2849,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                         </div>
                         <div
@@ -2889,7 +2880,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                             <FormItem
                                 required={values.provider === 'ChatGLM' && utils.isDesktopApp()}
@@ -2914,7 +2905,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                         </div>
                         <div
@@ -2923,7 +2914,7 @@ export function InnerSettings({
                             }}
                         >
                             <FormItem name='geminiAPIURL' label={t('API URL')} required={values.provider === 'Gemini'}>
-                                <Input size='compact' onBlur={onBlur} />
+                                <Input size='compact' />
                             </FormItem>
                             <FormItem
                                 required={values.provider === 'Gemini'}
@@ -2944,7 +2935,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                             <FormItem
                                 name='geminiAPIModel'
@@ -2955,7 +2946,6 @@ export function InnerSettings({
                                     provider='Gemini'
                                     currentProvider={values.provider}
                                     apiKey={values.geminiAPIKey}
-                                    onBlur={onBlur}
                                 />
                             </FormItem>
                         </div>
@@ -2983,7 +2973,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                             <FormItem
                                 name='cohereAPIModel'
@@ -2994,7 +2984,6 @@ export function InnerSettings({
                                     provider='Cohere'
                                     currentProvider={values.provider}
                                     apiKey={values.cohereAPIKey}
-                                    onBlur={onBlur}
                                 />
                             </FormItem>
                         </div>
@@ -3022,7 +3011,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                             <FormItem
                                 name='deepSeekAPIModel'
@@ -3033,7 +3022,6 @@ export function InnerSettings({
                                     provider='DeepSeek'
                                     currentProvider={values.provider}
                                     apiKey={values.deepSeekAPIKey}
-                                    onBlur={onBlur}
                                 />
                             </FormItem>
                         </div>
@@ -3121,7 +3109,6 @@ export function InnerSettings({
                                     type='password'
                                     size='compact'
                                     name='apiKey'
-                                    onBlur={onBlur}
                                 />
                             </FormItem>
                             <FormItem
@@ -3131,14 +3118,13 @@ export function InnerSettings({
                                     "Some providers claiming to be compatible with OpenAI's API do not actually support OpenAI's standard model API. Therefore, we have no choice but to offer this option. If you choose this option (and then need to click the save button), we will not attempt to dynamically fetch the latest model list from the model API, but will only use a fixed model list and custom models."
                                 )}
                             >
-                                <MyCheckbox onBlur={onBlur} />
+                                <MyCheckbox />
                             </FormItem>
                             <FormItem name='apiModel' label={t('API Model')} required={values.provider === 'OpenAI'}>
                                 <APIModelSelector
                                     provider='OpenAI'
                                     currentProvider={values.provider === 'MyMemory' ? 'OpenAI' : values.provider}
                                     apiKey={values.apiKeys}
-                                    onBlur={onBlur}
                                 />
                             </FormItem>
                             <div
@@ -3155,7 +3141,7 @@ export function InnerSettings({
                                 </FormItem>
                             </div>
                             <FormItem name='apiURL' label={t('API URL')} required={values.provider === 'OpenAI'}>
-                                <Input size='compact' onBlur={onBlur} />
+                                <Input size='compact' />
                             </FormItem>
                             <FormItem
                                 name='apiURLPath'
@@ -3191,7 +3177,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                             <FormItem
                                 name='azureAPIModel'
@@ -3202,11 +3188,10 @@ export function InnerSettings({
                                     provider='Azure'
                                     currentProvider={values.provider}
                                     apiKey={values.azureAPIKeys}
-                                    onBlur={onBlur}
                                 />
                             </FormItem>
                             <FormItem name='azureAPIURL' label={t('API URL')} required={values.provider === 'Azure'}>
-                                <Input size='compact' onBlur={onBlur} />
+                                <Input size='compact' />
                             </FormItem>
                             <FormItem
                                 name='azureAPIURLPath'
@@ -3229,11 +3214,7 @@ export function InnerSettings({
                                 label={t('API Model')}
                                 required={values.provider === 'ChatGPT'}
                             >
-                                <APIModelSelector
-                                    provider='ChatGPT'
-                                    currentProvider={values.provider}
-                                    onBlur={onBlur}
-                                />
+                                <APIModelSelector provider='ChatGPT' currentProvider={values.provider} />
                             </FormItem>
                         </div>
                         <div
@@ -3260,7 +3241,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                             <FormItem
                                 name='miniMaxAPIModel'
@@ -3270,7 +3251,6 @@ export function InnerSettings({
                                 <APIModelSelector
                                     provider='MiniMax'
                                     currentProvider={values.provider}
-                                    onBlur={onBlur}
                                     apiKey={values.miniMaxAPIKey}
                                 />
                             </FormItem>
@@ -3299,7 +3279,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                             <FormItem
                                 name='moonshotAPIModel'
@@ -3309,7 +3289,6 @@ export function InnerSettings({
                                 <APIModelSelector
                                     provider='Moonshot'
                                     currentProvider={values.provider}
-                                    onBlur={onBlur}
                                     apiKey={values.moonshotAPIKey}
                                 />
                             </FormItem>
@@ -3338,7 +3317,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                             <FormItem
                                 name='cerebrasAPIModel'
@@ -3349,7 +3328,6 @@ export function InnerSettings({
                                     provider='Cerebras'
                                     currentProvider={values.provider}
                                     apiKey={values.cerebrasAPIKey}
-                                    onBlur={onBlur}
                                 />
                             </FormItem>
                         </div>
@@ -3377,7 +3355,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                             <FormItem
                                 name='teamoRouterAPIModel'
@@ -3388,7 +3366,6 @@ export function InnerSettings({
                                     provider='TeamoRouter'
                                     currentProvider={values.provider}
                                     apiKey={values.teamoRouterAPIKey}
-                                    onBlur={onBlur}
                                 />
                             </FormItem>
                         </div>
@@ -3416,7 +3393,7 @@ export function InnerSettings({
                                     </div>
                                 }
                             >
-                                <Input autoFocus type='password' size='compact' onBlur={onBlur} />
+                                <Input autoFocus type='password' size='compact' />
                             </FormItem>
                             <FormItem
                                 name='openRouterAPIModel'
@@ -3427,7 +3404,6 @@ export function InnerSettings({
                                     provider='OpenRouter'
                                     currentProvider={values.provider}
                                     apiKey={values.openRouterAPIKey}
-                                    onBlur={onBlur}
                                 />
                             </FormItem>
                         </div>
@@ -3442,7 +3418,7 @@ export function InnerSettings({
                                 label={t('API URL')}
                                 caption='The base URL of your LiteLLM proxy server, e.g. http://localhost:4000'
                             >
-                                <Input autoFocus size='compact' onBlur={onBlur} />
+                                <Input autoFocus size='compact' />
                             </FormItem>
                             <FormItem
                                 required={values.provider === 'LiteLLM'}
@@ -3450,7 +3426,7 @@ export function InnerSettings({
                                 label='LiteLLM API Key'
                                 caption='Your LiteLLM proxy virtual key or master key. Leave blank if your proxy has no authentication.'
                             >
-                                <Input type='password' size='compact' onBlur={onBlur} />
+                                <Input type='password' size='compact' />
                             </FormItem>
                             <FormItem
                                 name='liteLLMAPIModel'
@@ -3461,7 +3437,6 @@ export function InnerSettings({
                                     provider='LiteLLM'
                                     currentProvider={values.provider}
                                     apiKey={values.liteLLMAPIKey}
-                                    onBlur={onBlur}
                                 />
                             </FormItem>
                         </div>
@@ -3472,20 +3447,20 @@ export function InnerSettings({
                                 'Disable thinking for faster translations. Reasoning models think by default, which significantly slows down simple tasks.'
                             )}
                         >
-                            <MyCheckbox onBlur={onBlur} />
+                            <MyCheckbox />
                         </FormItem>
                         <FormItem name='defaultTranslateMode' label={t('Default Action')}>
-                            <TranslateModeSelector onBlur={onBlur} />
+                            <TranslateModeSelector />
                         </FormItem>
                         <PerActionModelConfig settings={values} />
                         <FormItem name='defaultTargetLanguage' label={t('Default target language')}>
-                            <LanguageSelector onBlur={onBlur} />
+                            <LanguageSelector />
                         </FormItem>
                         <FormItem name='languageDetectionEngine' label={t('Language detection engine')}>
-                            <LanguageDetectionEngineSelector onBlur={onBlur} />
+                            <LanguageDetectionEngineSelector />
                         </FormItem>
                         <FormItem name='themeType' label={t('Theme')}>
-                            <ThemeTypeSelector onBlur={onBlur} />
+                            <ThemeTypeSelector />
                         </FormItem>
                         <FormItem
                             style={{
@@ -3497,7 +3472,7 @@ export function InnerSettings({
                                 "If the window background blur effect is enabled, please ensure to set the 'Theme' to 'Follow the System', as it is currently not possible to manually switch between light and dark themes when the window background blur is active."
                             )}
                         >
-                            <MyCheckbox onBlur={onBlur} />
+                            <MyCheckbox />
                         </FormItem>
                         <FormItem
                             name='fontSize'
@@ -3540,10 +3515,10 @@ export function InnerSettings({
                                 )
                             }
                         >
-                            <MyCheckbox onBlur={onBlur} />
+                            <MyCheckbox />
                         </FormItem>
                         <FormItem name='autoTranslate' label={t('Auto Translate')}>
-                            <AutoTranslateCheckbox onBlur={onBlur} />
+                            <AutoTranslateCheckbox />
                         </FormItem>
                         <FormItem
                             style={{
@@ -3552,14 +3527,14 @@ export function InnerSettings({
                             name='restorePreviousPosition'
                             label={t('Fixed Position')}
                         >
-                            <RestorePreviousPositionCheckbox onBlur={onBlur} />
+                            <RestorePreviousPositionCheckbox />
                         </FormItem>
                         <FormItem name='selectInputElementsText' label={t('Word selection in input')}>
-                            <SelectInputElementsCheckbox onBlur={onBlur} />
+                            <SelectInputElementsCheckbox />
                         </FormItem>
                         {isTauri && (
                             <FormItem name='runAtStartup' label={t('Run at startup')}>
-                                <RunAtStartupCheckbox onBlur={onBlur} />
+                                <RunAtStartupCheckbox />
                             </FormItem>
                         )}
                         <FormItem
@@ -3569,7 +3544,7 @@ export function InnerSettings({
                             name='hideTheIconInTheDock'
                             label={isMacOS ? t('Hide the icon in the Dock bar') : t('Hide the icon in the taskbar')}
                         >
-                            <MyCheckbox onBlur={onBlur} />
+                            <MyCheckbox />
                         </FormItem>
                         <FormItem
                             style={{
@@ -3578,7 +3553,7 @@ export function InnerSettings({
                             name='autoHideWindowWhenOutOfFocus'
                             label={t('Auto hide window when out of focus')}
                         >
-                            <MyCheckbox onBlur={onBlur} />
+                            <MyCheckbox />
                         </FormItem>
                         <FormItem
                             name='useCompactLookup'
@@ -3587,7 +3562,7 @@ export function InnerSettings({
                                 'When enabled, text selection translation shows a compact popup with only the translated result'
                             )}
                         >
-                            <UseCompactLookupCheckbox onBlur={onBlur} />
+                            <UseCompactLookupCheckbox />
                         </FormItem>
                         <FormItem
                             style={{
@@ -3596,7 +3571,7 @@ export function InnerSettings({
                             name='automaticCheckForUpdates'
                             label={t('Automatic check for updates')}
                         >
-                            <MyCheckbox onBlur={onBlur} />
+                            <MyCheckbox />
                         </FormItem>
                         <FormItem
                             style={{
@@ -3605,7 +3580,7 @@ export function InnerSettings({
                             name='disableCollectingStatistics'
                             label={t('disable collecting statistics')}
                         >
-                            <MyCheckbox onBlur={onBlur} />
+                            <MyCheckbox />
                         </FormItem>
                     </div>
                     <div
@@ -3645,10 +3620,10 @@ export function InnerSettings({
                             name='readSelectedWordsFromInputElementsText'
                             label={t('Read the selected words in input')}
                         >
-                            <ReadSelectedWordsFromInputElementsCheckbox onBlur={onBlur} />
+                            <ReadSelectedWordsFromInputElementsCheckbox />
                         </FormItem>
                         <FormItem name='tts' label={t('TTS')}>
-                            <TTSVoicesSettings onBlur={onBlur} />
+                            <TTSVoicesSettings />
                         </FormItem>
                     </div>
                     <div
@@ -3663,7 +3638,7 @@ export function InnerSettings({
                             name='writingTargetLanguage'
                             label={t('Writing target language')}
                         >
-                            <LanguageSelector onBlur={onBlur} />
+                            <LanguageSelector />
                         </FormItem>
                         <FormItem
                             style={{
@@ -3675,7 +3650,7 @@ export function InnerSettings({
                                 'Press this shortcut key in the input box of any application, and the text already entered in the input box will be automatically translated into the writing target language.'
                             )}
                         >
-                            <HotkeyRecorder onBlur={onBlur} testId='writing-hotkey-recorder' />
+                            <HotkeyRecorder testId='writing-hotkey-recorder' />
                         </FormItem>
                         <FormItem
                             style={{
@@ -3685,7 +3660,7 @@ export function InnerSettings({
                             label={t('Writing line break shortcut')}
                             caption={t('When writing, which key should be pressed when encountering a line break?')}
                         >
-                            <HotkeyRecorder onBlur={onBlur} testId='writing-newline-hotkey-recorder' />
+                            <HotkeyRecorder testId='writing-newline-hotkey-recorder' />
                         </FormItem>
                     </div>
                     <div
@@ -3694,10 +3669,10 @@ export function InnerSettings({
                         }}
                     >
                         <FormItem name='hotkey' label={t('Hotkey')}>
-                            <HotkeyRecorder onBlur={onBlur} testId='hotkey-recorder' />
+                            <HotkeyRecorder testId='hotkey-recorder' />
                         </FormItem>
                         <FormItem name='displayWindowHotkey' label={t('Display window Hotkey')}>
-                            <HotkeyRecorder onBlur={onBlur} testId='display-window-hotkey-recorder' />
+                            <HotkeyRecorder testId='display-window-hotkey-recorder' />
                         </FormItem>
                         <FormItem
                             style={{
@@ -3706,7 +3681,7 @@ export function InnerSettings({
                             name='ocrHotkey'
                             label={t('OCR Hotkey')}
                         >
-                            <HotkeyRecorder onBlur={onBlur} testId='ocr-hotkey-recorder' />
+                            <HotkeyRecorder testId='ocr-hotkey-recorder' />
                         </FormItem>
                         <FormItem
                             style={{
@@ -3718,7 +3693,7 @@ export function InnerSettings({
                                 'Open a non-activating panel that auto-detects the word or sentence you are reading.'
                             )}
                         >
-                            <HotkeyRecorder onBlur={onBlur} testId='quick-translator-hotkey-recorder' />
+                            <HotkeyRecorder testId='quick-translator-hotkey-recorder' />
                         </FormItem>
                     </div>
                 </div>

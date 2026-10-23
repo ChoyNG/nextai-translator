@@ -1,3 +1,4 @@
+import { validateOpenAIAPIPath } from '../openai-api-path'
 /* eslint-disable camelcase */
 import { CUSTOM_MODEL_ID } from '../constants'
 import { getSettings } from '../utils'
@@ -30,6 +31,6 @@ export class OpenAI extends AbstractOpenAI {
 
     async getAPIURLPath(): Promise<string> {
         const settings = await getSettings()
-        return settings.apiURLPath
+        return validateOpenAIAPIPath(settings.apiURLPath)
     }
 }

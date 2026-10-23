@@ -59,3 +59,16 @@ it('uses the selected default provider while preserving explicit custom actions'
     expect(getEngine).toHaveBeenLastCalledWith('OpenAI')
     expect(sendMessage.mock.calls.at(-1)?.[0].modelOverride).toBe('gpt-6-luna')
 })
+
+it('keeps free translation independent of broken AI credentials and URL', async () => {
+    vi.mocked(getSettings).mockResolvedValue({
+        provider: 'MyMemory',
+        apiKeys: '',
+        apiURL: 'https://invalid.example',
+        apiURLPath: 'https://invalid.example/keys',
+    } as never)
+    sendMessage.mockResolvedValue(undefined)
+    await translate(query())
+    expect(getEngine).toHaveBeenLastCalledWith('MyMemory')
+    expect(sendMessage).toHaveBeenCalledOnce()
+})
