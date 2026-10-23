@@ -10,7 +10,7 @@ export function ThumbWindow() {
             <div
                 className='thumb'
                 style={{
-                    background: theme.colors.backgroundPrimary,
+                    background: 'transparent',
                 }}
             >
                 <img
@@ -20,6 +20,7 @@ export function ThumbWindow() {
                         width: '100%',
                         height: '100%',
                     }}
+                    alt='NextAI Study'
                     src={icon}
                 />
             </div>

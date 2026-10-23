@@ -83,7 +83,7 @@
     },
     "trayIcon": {
       "id": "tray",
-      "iconAsTemplate": true,
+      "iconAsTemplate": false,
       "iconPath": "icons/favicon.ico"
     },
     "windows": []
