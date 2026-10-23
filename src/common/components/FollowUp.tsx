@@ -5,16 +5,26 @@ import { IMessage } from '../engines/interfaces'
 import { getSettings } from '../utils'
 import { withRequestTimeout } from '../request-timeout'
 import { Markdown } from './Markdown'
+import { CollectionContent } from '../collection-export'
 import { useTheme } from '../hooks/useTheme'
 
 interface Props {
     text: string
     translation: string
     target: string
-    onSave: (description: string) => Promise<unknown>
+    machineTranslation?: string
+    onAITranslation?: (value: string) => void
+    onSave: (content: CollectionContent) => Promise<unknown>
 }
 
-export function FollowUp({ text, translation, target, onSave }: Props) {
+export function FollowUp({
+    text,
+    translation,
+    target,
+    machineTranslation = translation,
+    onAITranslation,
+    onSave,
+}: Props) {
     const { theme } = useTheme()
     const [messages, setMessages] = useState<IMessage[]>([])
     const history = useRef<IMessage[]>([])
@@ -25,12 +35,14 @@ export function FollowUp({ text, translation, target, onSave }: Props) {
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState('')
     const [saved, setSaved] = useState(false)
+    const [aiTranslation, setAITranslation] = useState('')
+    const [selected, setSelected] = useState<number[]>([])
     useEffect(() => () => controller.current?.abort(), [])
     useEffect(() => {
         if (transcript.current) transcript.current.scrollTop = transcript.current.scrollHeight
     }, [messages])
 
-    const ask = async (value = question) => {
+    const ask = async (value = question, retranslate = false) => {
         const prompt = value.trim()
         if (!prompt || busy) return
         if (
@@ -88,6 +100,10 @@ export function FollowUp({ text, translation, target, onSave }: Props) {
             if (failed || !answer || !finished)
                 throw new Error(failed || 'AI 未返回完整回答，请检查 API 路径和流式响应支持后重试。')
             history.current = [...before, { role: 'assistant', content: answer }]
+            if (retranslate) {
+                setAITranslation(answer)
+                onAITranslation?.(answer)
+            }
             setQuestion('')
         } catch (cause) {
             if (!abort.signal.aborted) {
@@ -116,7 +132,8 @@ export function FollowUp({ text, translation, target, onSave }: Props) {
                     onClick={() => {
                         if (details.current) details.current.open = true
                         void ask(
-                            `请将 Study text 中的原文重新翻译为 ${target}。独立判断原文含义，不要照搬机翻；只输出自然、准确的译文。`
+                            `请将 Study text 中的原文重新翻译为 ${target}。独立判断原文含义，不要照搬机翻；只输出自然、准确的译文。`,
+                            true
                         )
                     }}
                 >
@@ -175,6 +192,25 @@ export function FollowUp({ text, translation, target, onSave }: Props) {
                                 {message.role === 'user' ? 'YOU' : 'AI'}
                             </div>
                             <Markdown>{message.content || '思考中…'}</Markdown>
+                            {message.role === 'assistant' && message.content && !busy && (
+                                <label style={{ display: 'block', marginTop: 8, fontSize: 12 }}>
+                                    <input
+                                        type='checkbox'
+                                        checked={selected.includes(index)}
+                                        onChange={(event) => {
+                                            setSaved(false)
+                                            setSelected((values) =>
+                                                event.target.checked
+                                                    ? [...values, index]
+                                                    : values.filter((value) => value !== index)
+                                            )
+                                        }}
+                                    />
+                                    {/例句|example/i.test(messages[index - 1]?.content ?? '')
+                                        ? '保存这组例句'
+                                        : '保存这条追问'}
+                                </label>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -230,17 +266,28 @@ export function FollowUp({ text, translation, target, onSave }: Props) {
                         disabled={busy}
                         onClick={async () => {
                             try {
-                                const notes = history.current
-                                    .map((message) => `${message.role === 'user' ? 'You' : 'AI'}: ${message.content}`)
-                                    .join('\n\n')
-                                const result = await onSave(`${translation}\n\n${notes}`)
+                                const examples: string[] = []
+                                const conversation: string[] = []
+                                selected.forEach((index) => {
+                                    const answer = history.current[index]
+                                    const question = history.current[index - 1]
+                                    if (!answer || !question) return
+                                    if (/例句|example/i.test(question.content)) examples.push(answer.content)
+                                    else conversation.push('You: ' + question.content + '\nAI: ' + answer.content)
+                                })
+                                const result = await onSave({
+                                    machineTranslation,
+                                    aiTranslation: aiTranslation || (machineTranslation ? '' : translation),
+                                    examples: examples.join('\n\n'),
+                                    conversation: conversation.join('\n\n'),
+                                })
                                 if (result !== false) setSaved(true)
                             } catch (cause) {
                                 setError(String(cause))
                             }
                         }}
                     >
-                        {saved ? '✓ 已保存到生词本' : '收藏翻译和这段对话'}
+                        {saved ? '✓ 已保存到生词本' : '保存收藏（含已勾选内容）'}
                     </Button>
                 )}
             </details>

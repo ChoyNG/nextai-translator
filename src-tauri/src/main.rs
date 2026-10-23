@@ -3,6 +3,7 @@
     windows_subsystem = "windows"
 )]
 
+mod anki_export;
 mod ax_context;
 mod config;
 mod fetch;
@@ -398,6 +399,7 @@ fn main() {
 
     let specta_builder = tauri_specta::Builder::<tauri::Wry>::new()
         .commands(tauri_specta::collect_commands![
+            anki_export::build_anki_package,
             get_config_content,
             get_update_result,
             clear_config_cache,
@@ -484,6 +486,7 @@ fn main() {
             MacosLauncher::LaunchAgent,
             Some(vec!["--silently"]),
         ))
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .setup(move |app| {
             specta_builder_setup.mount_events(app);

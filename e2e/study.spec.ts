@@ -65,7 +65,7 @@ test('free phrase translation, contextual AI chat, collection and Anki export', 
     await expect(page.getByText('For example: I take ownership of this release.', { exact: true })).toHaveCount(2)
     await question.fill('Give another workplace example')
     await page.getByRole('button', { name: '发送', exact: true }).click()
-    await expect(page.getByRole('button', { name: '收藏翻译和这段对话' })).toBeEnabled()
+    await expect(page.getByRole('button', { name: '保存收藏（含已勾选内容）' })).toBeEnabled()
     const calls = await background.evaluate(
         () => (globalThis as unknown as { studyCalls: { messages: { role: string; content: string }[] }[] }).studyCalls
     )
@@ -82,7 +82,8 @@ test('free phrase translation, contextual AI chat, collection and Anki export', 
     ])
     expect(calls[2].messages[1].content).toContain('take ownership')
     expect(calls[2].messages[6].content).toBe('Give another workplace example')
-    await page.getByRole('button', { name: '收藏翻译和这段对话' }).click()
+    await page.locator('[data-testid=ai-follow-up] input[type=checkbox]').last().check()
+    await page.getByRole('button', { name: '保存收藏（含已勾选内容）' }).click()
     await expect(page.getByRole('button', { name: '✓ 已保存到生词本' })).toBeVisible()
     await page.getByRole('button', { name: 'Open vocabulary actions' }).click()
     const downloadEvent = page.waitForEvent('download')
@@ -90,8 +91,15 @@ test('free phrase translation, contextual AI chat, collection and Anki export', 
     const download = await downloadEvent
     const content = await fs.readFile((await download.path())!, 'utf8')
     expect(content).toContain('#separator:Tab')
-    expect(content).toContain('take ownership\t主动承担责任')
-    expect(content).toContain('Give another workplace example')
+    expect(content).toContain('take ownership\tFor example: I take ownership of this release.')
+    expect(content).toContain('For example: I take ownership of this release.')
     await expect(page.getByText('Anki 导入文件已下载', { exact: true })).not.toBeVisible({ timeout: 6000 })
+    const csvEvent = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'CSV 导出', exact: true }).click()
+    const csvDownload = await csvEvent
+    const csv = await fs.readFile((await csvDownload.path())!, 'utf8')
+    expect(csv).toContain('"machineTranslation"')
+    expect(csv).toContain('"aiTranslation"')
+    expect(csv).toContain('主动承担责任')
     await page.screenshot({ path: '../nextai-study-preview.png', fullPage: true })
 })

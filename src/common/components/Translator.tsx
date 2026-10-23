@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
-import toast from 'react-hot-toast/headless'
+import toast from 'react-hot-toast'
+import { CollectionContent } from '../collection-export'
 import { Client as Styletron } from 'styletron-engine-atomic'
 import { Provider as StyletronProvider } from 'styletron-react'
 import { BaseProvider } from 'baseui-sd'
@@ -54,7 +55,7 @@ import Vocabulary from './Vocabulary'
 import { useCollectedWordTotal } from '../hooks/useCollectedWordTotal'
 import { Modal, ModalBody, ModalHeader } from 'baseui-sd/modal'
 import { vocabularyService } from '../services/vocabulary'
-import { Action, VocabularyItem, HistoryItem } from '../internal-services/db'
+import { Action, HistoryItem } from '../internal-services/db'
 import { CopyButton } from './CopyButton'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { actionService } from '../services/action'
@@ -1261,8 +1262,11 @@ function InnerTranslator(props: IInnerTranslatorProps) {
      * Add or remove word from collection.
      * @param remove - Remove word from collection if true, otherwise add it to collection.
      */
+    const [studyAITranslation, setStudyAITranslation] = useState('')
+    useEffect(() => setStudyAITranslation(''), [editableText, targetLang, translateDeps.provider])
+
     const onWordCollection = useCallback(
-        async (remove: boolean, description = translatedText) => {
+        async (remove: boolean, content?: CollectionContent) => {
             try {
                 if (remove) {
                     const wordInfo = await vocabularyService.getItem(editableText.trim())
@@ -1274,7 +1278,23 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                     await vocabularyService.putItem({
                         word: editableText.trim(),
                         reviewCount: existing?.reviewCount ?? 1,
-                        description,
+                        ...existing,
+                        machineTranslation:
+                            content?.machineTranslation ??
+                            (translateDeps.provider === 'MyMemory'
+                                ? translatedText
+                                : String(existing?.machineTranslation ?? '')),
+                        aiTranslation:
+                            content?.aiTranslation ??
+                            (studyAITranslation ||
+                                (translateDeps.provider !== 'MyMemory'
+                                    ? translatedText
+                                    : String(existing?.aiTranslation ?? ''))),
+                        examples: content?.examples ?? String(existing?.examples ?? ''),
+                        conversation: content?.conversation ?? String(existing?.conversation ?? ''),
+                        description:
+                            existing?.description ||
+                            (content ? content.aiTranslation || content.machineTranslation : translatedText),
                         updatedAt: new Date().valueOf().toString(),
                         createdAt: existing?.createdAt ?? new Date().valueOf().toString(),
                     })
@@ -1288,7 +1308,7 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                 return false
             }
         },
-        [editableText, setCollectedWordTotal, translatedText]
+        [editableText, setCollectedWordTotal, translatedText, translateDeps.provider, studyAITranslation]
     )
 
     useEffect(() => {
@@ -1932,30 +1952,24 @@ function InnerTranslator(props: IInnerTranslatorProps) {
         }
     }
 
-    const onCsvExport = async () => {
+    const [exporting, setExporting] = useState(false)
+    const exportCollection = async (anki: boolean) => {
+        if (exporting) return
+        setExporting(true)
         try {
             const words = await vocabularyService.listItems()
-            await exportToCsv<VocabularyItem>(`nextai-translator-collection-${new Date().valueOf()}`, words)
-            if (isDesktopApp()) {
-                toast(t('CSV file saved on Desktop'), {
-                    duration: 5000,
-                    icon: '👏',
-                })
-            }
-        } catch (e) {
-            console.error(e)
-            toast.error(String(e))
-        }
-    }
-
-    const onAnkiExport = async () => {
-        try {
-            await exportToAnki(`nextai-study-${Date.now()}`, await vocabularyService.listItems())
-            toast(isDesktopApp() ? 'Anki 导入文件已保存到桌面' : 'Anki 导入文件已下载', { icon: '✓' })
+            const name = 'nextai-study-' + Date.now()
+            const destination = anki ? await exportToAnki(name, words) : await exportToCsv(name, words)
+            if (destination !== null)
+                toast.success(destination ? '已导出：' + destination : '导出文件已下载', { duration: 8000 })
         } catch (error) {
-            toast.error(String(error))
+            toast.error(String(error), { duration: 10000 })
+        } finally {
+            setExporting(false)
         }
     }
+    const onCsvExport = () => exportCollection(false)
+    const onAnkiExport = () => exportCollection(true)
 
     const editableTextSpeakingIconRef = useRef<HTMLDivElement>(null)
 
@@ -2746,9 +2760,16 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                                 showArrow
                                                 placement='top'
                                             >
-                                                <div className={styles.actionButton} onClick={onCsvExport}>
+                                                <button
+                                                    type='button'
+                                                    aria-label='CSV 导出'
+                                                    disabled={exporting}
+                                                    style={{ border: 0, background: 'transparent' }}
+                                                    className={styles.actionButton}
+                                                    onClick={onCsvExport}
+                                                >
                                                     <TbCsv size={15} />
-                                                </div>
+                                                </button>
                                             </StatefulTooltip>
                                             <StatefulTooltip content='Big Bang' showArrow placement='top'>
                                                 <div className={styles.actionButton}>
@@ -3214,7 +3235,9 @@ function InnerTranslator(props: IInnerTranslatorProps) {
                                         text={editableText}
                                         translation={translatedText}
                                         target={targetLang ?? 'zh-Hans'}
-                                        onSave={(description) => onWordCollection(false, description)}
+                                        machineTranslation={translateDeps.provider === 'MyMemory' ? translatedText : ''}
+                                        onAITranslation={setStudyAITranslation}
+                                        onSave={(content) => onWordCollection(false, content)}
                                     />
                                 )}
                                 {isNotLogin && settings?.provider === 'ChatGLM' && (

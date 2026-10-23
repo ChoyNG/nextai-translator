@@ -355,32 +355,54 @@ export const isUsingOpenAIOfficial = async () => {
 
 // js to csv
 export async function exportToCsv<T extends Record<string, string | number>>(filename: string, rows: T[]) {
-    if (!rows.length) return
+    if (!rows.length) throw new Error('生词本为空，请先收藏单词或短语。')
     return exportTextFile(filename + '.csv', collectionCsv(rows), 'text/csv')
 }
 
 export async function exportToAnki(filename: string, rows: { word: string; description: string }[]) {
     if (!rows.length) throw new Error('生词本为空，请先收藏单词或短语。')
+    if (isDesktopApp()) {
+        const { invoke } = await import('@tauri-apps/api/core')
+        const bytes = await invoke<number[]>('build_anki_package', { rows })
+        return exportTextFile(filename + '.apkg', new Uint8Array(bytes), 'application/octet-stream')
+    }
     return exportTextFile(filename + '.txt', collectionAnki(rows), 'text/plain')
 }
 
-async function exportTextFile(filename: string, content: string, mime: string) {
+export async function exportTextFile(
+    filename: string,
+    content: string | Uint8Array,
+    mime: string
+): Promise<string | null> {
     if (isDesktopApp()) {
-        const { BaseDirectory, writeTextFile } = await import('@tauri-apps/plugin-fs')
-        await writeTextFile(filename, content, { baseDir: BaseDirectory.Desktop })
-    } else {
-        const url = URL.createObjectURL(new Blob([content], { type: `${mime};charset=utf-8` }))
-        const link = document.createElement('a')
-        link.href = url
-        link.download = filename
-        document.body.appendChild(link)
-        try {
-            link.click()
-        } finally {
-            link.remove()
-            setTimeout(() => URL.revokeObjectURL(url), 1000)
-        }
+        const { save } = await import('@tauri-apps/plugin-dialog')
+        const { writeFile } = await import('@tauri-apps/plugin-fs')
+        const extension = filename.split('.').pop()!
+        const destination = await save({
+            defaultPath: filename,
+            filters: [{ name: extension.toUpperCase(), extensions: [extension] }],
+        })
+        if (!destination) return null
+        await writeFile(destination, typeof content === 'string' ? new TextEncoder().encode(content) : content)
+        return destination
     }
+    const bytes = typeof content === 'string' ? new TextEncoder().encode(content) : content
+    const url = URL.createObjectURL(
+        new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer], {
+            type: mime + ';charset=utf-8',
+        })
+    )
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    try {
+        link.click()
+    } finally {
+        link.remove()
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+    }
+    return ''
 }
 
 interface FetchSSEOptions extends RequestInit {

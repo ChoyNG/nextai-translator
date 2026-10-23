@@ -163,7 +163,8 @@
           "path": "$DESKTOP/**"
         }
       ]
-    }
+    },
+    "dialog:allow-save"
   ],
   "platforms": [
     "linux",

@@ -53,7 +53,7 @@ describe('AI follow-up conversation', () => {
         container.remove()
     })
     const ask = async (question: string) => {
-        const input = container.querySelector('input')!
+        const input = container.querySelector<HTMLInputElement>('input[aria-label="AI follow-up question"]')!
         act(() => {
             input.value = question
             Simulate.change(input)
@@ -76,10 +76,40 @@ describe('AI follow-up conversation', () => {
         expect(request.messages?.[3].content).toBe('Example answer')
         expect(request.messages?.[4].content).toBe('Give a workplace example')
         const button = Array.from(container.querySelectorAll('button')).find(
-            (item) => item.textContent?.includes('收藏翻译')
+            (item) => item.textContent?.includes('保存收藏')
         )!
+        const boxes = container.querySelectorAll<HTMLInputElement>('input[type=checkbox]')
+        await act(async () => {
+            boxes[0].click()
+        })
         await act(async () => button.click())
-        expect(save).toHaveBeenCalledWith(expect.stringContaining('承担责任\n\nYou: Explain this phrase'))
+        expect(save).toHaveBeenCalledWith({
+            machineTranslation: '承担责任',
+            aiTranslation: '',
+            examples: '',
+            conversation: 'You: Explain this phrase\nAI: Example answer',
+        })
+    })
+    it('keeps examples optional and stores selected examples separately', async () => {
+        await ask('给我三个工作场景例句')
+        const saveButton = Array.from(container.querySelectorAll('button')).find(
+            (item) => item.textContent?.includes('保存收藏')
+        )!
+        await act(async () => saveButton.click())
+        expect(save).toHaveBeenLastCalledWith({
+            machineTranslation: '承担责任',
+            aiTranslation: '',
+            examples: '',
+            conversation: '',
+        })
+        await act(async () => container.querySelector<HTMLInputElement>('input[type=checkbox]')!.click())
+        await act(async () => saveButton.click())
+        expect(save).toHaveBeenLastCalledWith({
+            machineTranslation: '承担责任',
+            aiTranslation: '',
+            examples: 'Example answer',
+            conversation: '',
+        })
     })
     it('shows setup guidance without making an AI request when no key is configured', async () => {
         mocks.settings.mockResolvedValue({ apiURL: 'https://provider.example', apiKeys: '' })
