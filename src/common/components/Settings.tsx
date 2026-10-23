@@ -125,6 +125,25 @@ interface ITranslateModeSelectorProps {
     onBlur?: () => void
 }
 
+function OpenAIPathSelector({ value, onChange }: { value?: string; onChange?: (value: string) => void }) {
+    const options = [
+        { id: OPENAI_RESPONSES_API_PATH, label: 'Responses · /v1/responses' },
+        { id: OPENAI_CHAT_COMPLETIONS_API_PATH, label: 'Chat Completions · /v1/chat/completions' },
+    ]
+    return (
+        <Select
+            size='compact'
+            searchable={false}
+            clearable={false}
+            options={options}
+            value={options.filter((option) => option.id === value)}
+            onChange={({ value: selected }) => {
+                if (selected[0]) onChange?.(selected[0].id as string)
+            }}
+        />
+    )
+}
+
 function TranslateModeSelector({ value, onChange, onBlur }: ITranslateModeSelectorProps) {
     const actions = useLiveQuery(() => actionService.list())
     const { t } = useTranslation()
@@ -3148,7 +3167,7 @@ export function InnerSettings({
                                 label={t('API URL Path')}
                                 required={values.provider === 'OpenAI'}
                             >
-                                <Input size='compact' />
+                                <OpenAIPathSelector />
                             </FormItem>
                         </div>
                         <div
